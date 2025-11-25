@@ -261,6 +261,8 @@ class MSCKFKalmanNetSystemModel(VIOSystemModel):
         Compute feature observation Jacobian.
         
         This is used for measurement update when features are observed.
+        NOTE: This is a simplified placeholder implementation. For production use,
+        implement proper analytical derivatives based on feature parameterization.
         
         Args:
             feature_pos: 3D feature position in global frame
@@ -272,12 +274,16 @@ class MSCKFKalmanNetSystemModel(VIOSystemModel):
         n_obs = len(cam_states)
         H = torch.zeros(2 * n_obs, self.kalmannet_m)
         
-        # Simplified Jacobian - actual implementation would depend on
-        # specific feature parameterization
+        # Simplified Jacobian using fixed small values
+        # TODO: Replace with proper analytical derivatives for production use
+        # The actual Jacobian depends on:
+        # - Camera projection model
+        # - Feature parameterization (inverse depth, XYZ, etc.)
+        # - State parameterization
         for i, cam in enumerate(cam_states):
-            # Partial derivative w.r.t. orientation
-            H[2*i:2*i+2, 0:3] = 0.01 * torch.randn(2, 3)
-            # Partial derivative w.r.t. position
-            H[2*i:2*i+2, 12:15] = 0.01 * torch.randn(2, 3)
+            # Approximate partial derivative w.r.t. orientation (small effect)
+            H[2*i:2*i+2, 0:3] = torch.tensor([[0.01, 0.0, 0.0], [0.0, 0.01, 0.0]])
+            # Approximate partial derivative w.r.t. position (direct effect)
+            H[2*i:2*i+2, 12:15] = torch.tensor([[0.1, 0.0, 0.0], [0.0, 0.1, 0.0]])
             
         return H

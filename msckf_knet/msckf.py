@@ -11,7 +11,7 @@ Reference:
 
 import numpy as np
 from scipy.linalg import expm, qr
-from scipy.spatial.transform import Rotation
+from scipy.spatial.transform import Rotation as ScipyRotation
 from typing import List, Tuple, Optional
 from copy import deepcopy
 
@@ -27,7 +27,9 @@ from .types import (
     quaternion_normalize,
     skew_symmetric,
     omega_matrix,
-    build_update_quaternion
+    build_update_quaternion,
+    quat_wxyz_to_xyzw,
+    quat_xyzw_to_wxyz
 )
 
 
@@ -120,8 +122,7 @@ class MSCKF:
         
         omega_hat = measurement.omega - imu_state.b_g
         a_hat = measurement.a - imu_state.b_a
-        C_IG = Rotation.from_quat([imu_state.q_IG[1], imu_state.q_IG[2], 
-                                   imu_state.q_IG[3], imu_state.q_IG[0]]).as_matrix()
+        C_IG = ScipyRotation.from_quat(quat_wxyz_to_xyzw(imu_state.q_IG)).as_matrix()
         
         # d(theta)/d(theta)
         self.F[0:3, 0:3] = -skew_symmetric(omega_hat)
@@ -138,8 +139,7 @@ class MSCKF:
         """Calculate the noise Jacobian matrix G."""
         self.G = np.zeros((15, 12))
         
-        C_IG = Rotation.from_quat([imu_state.q_IG[1], imu_state.q_IG[2],
-                                   imu_state.q_IG[3], imu_state.q_IG[0]]).as_matrix()
+        C_IG = ScipyRotation.from_quat(quat_wxyz_to_xyzw(imu_state.q_IG)).as_matrix()
         
         # Gyroscope noise
         self.G[0:3, 0:3] = -np.eye(3)
@@ -189,8 +189,7 @@ class MSCKF:
         imu_state_prop.q_IG = q_prop
         
         # Velocity integration
-        C_IG = Rotation.from_quat([imu_state.q_IG[1], imu_state.q_IG[2],
-                                   imu_state.q_IG[3], imu_state.q_IG[0]]).as_matrix()
+        C_IG = ScipyRotation.from_quat(quat_wxyz_to_xyzw(imu_state.q_IG)).as_matrix()
         delta_v = (C_IG.T @ (measurement.a - imu_state.b_a) + imu_state.g) * dT
         imu_state_prop.v_I_G = imu_state.v_I_G + delta_v
         
@@ -218,11 +217,9 @@ class MSCKF:
         self.Phi = expm(self.F)
         
         # Observability constraints
-        R_kk_1 = Rotation.from_quat([self.imu_state.q_IG_null[1], self.imu_state.q_IG_null[2],
-                                     self.imu_state.q_IG_null[3], self.imu_state.q_IG_null[0]]).as_matrix()
+        R_kk_1 = ScipyRotation.from_quat(quat_wxyz_to_xyzw(self.imu_state.q_IG_null)).as_matrix()
         
-        R_new = Rotation.from_quat([imu_state_prop.q_IG[1], imu_state_prop.q_IG[2],
-                                    imu_state_prop.q_IG[3], imu_state_prop.q_IG[0]]).as_matrix()
+        R_new = ScipyRotation.from_quat(quat_wxyz_to_xyzw(imu_state_prop.q_IG)).as_matrix()
         
         self.Phi[0:3, 0:3] = R_new @ R_kk_1.T
         
@@ -266,12 +263,11 @@ class MSCKF:
         
         # Compute camera pose from IMU pose
         q_CI = self.camera.q_CI
-        R_CI = Rotation.from_quat([q_CI[1], q_CI[2], q_CI[3], q_CI[0]]).as_matrix()
-        R_IG = Rotation.from_quat([self.imu_state.q_IG[1], self.imu_state.q_IG[2],
-                                   self.imu_state.q_IG[3], self.imu_state.q_IG[0]]).as_matrix()
+        R_CI = ScipyRotation.from_quat(quat_wxyz_to_xyzw(q_CI)).as_matrix()
+        R_IG = ScipyRotation.from_quat(quat_wxyz_to_xyzw(self.imu_state.q_IG)).as_matrix()
         
-        q_CG = Rotation.from_matrix(R_CI @ R_IG).as_quat()
-        q_CG = np.array([q_CG[3], q_CG[0], q_CG[1], q_CG[2]])  # Convert to [w, x, y, z]
+        q_CG = ScipyRotation.from_matrix(R_CI @ R_IG).as_quat()
+        q_CG = quat_xyzw_to_wxyz(q_CG)  # Convert to [w, x, y, z]
         q_CG = quaternion_normalize(q_CG)
         
         cam_state = CameraState(

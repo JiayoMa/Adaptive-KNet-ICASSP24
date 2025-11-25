@@ -51,6 +51,11 @@ class MSCKFKalmanNet(MSCKF):
     - State update based on visual observations
     """
     
+    # Covariance update learning rate for KalmanNet
+    COVAR_UPDATE_ALPHA = 0.1
+    # Covariance reduction factor when update fails
+    COVAR_REDUCTION_FACTOR = 0.99
+    
     def __init__(self, kalmannet_model: Optional[nn.Module] = None,
                  hypernetwork: Optional[nn.Module] = None,
                  use_adaptive: bool = True):
@@ -298,9 +303,14 @@ class MSCKFKalmanNet(MSCKF):
             delta_x_imu = K_knet @ r_torch
             delta_x_imu = delta_x_imu.cpu().numpy().flatten()
             
-        except Exception as e:
+        except (RuntimeError, ValueError, torch.LinAlgError) as e:
             # Fallback to standard EKF if KalmanNet fails
             print(f"KalmanNet failed, falling back to EKF: {e}")
+            super().measurement_update(H_o, r_o, R_o)
+            return
+        except AttributeError as e:
+            # Handle case where KalmanNet model structure is unexpected
+            print(f"KalmanNet model error, falling back to EKF: {e}")
             super().measurement_update(H_o, r_o, R_o)
             return
             
@@ -388,13 +398,13 @@ class MSCKFKalmanNet(MSCKF):
             info_gain = H_imu.T @ R_inv @ H_imu
             
             # Joseph form update (conservative)
-            alpha = 0.1  # Learning rate for covariance update
-            self.imu_covar = (1 - alpha) * self.imu_covar + alpha * np.linalg.inv(
+            self.imu_covar = (1 - self.COVAR_UPDATE_ALPHA) * self.imu_covar + \
+                             self.COVAR_UPDATE_ALPHA * np.linalg.inv(
                 np.linalg.inv(self.imu_covar) + info_gain
             )
         except np.linalg.LinAlgError:
             # If inversion fails, reduce covariance by fixed factor
-            self.imu_covar *= 0.99
+            self.imu_covar *= self.COVAR_REDUCTION_FACTOR
             
         # Ensure symmetry
         self.imu_covar = (self.imu_covar + self.imu_covar.T) / 2.0
@@ -434,27 +444,25 @@ def create_msckf_kalmannet(kalmannet_path: Optional[str] = None,
     Factory function to create MSCKF-KalmanNet.
     
     Args:
-        kalmannet_path: Path to pre-trained KalmanNet weights
-        hypernetwork_path: Path to pre-trained hypernetwork weights
+        kalmannet_path: Path to pre-trained KalmanNet weights (not yet implemented)
+        hypernetwork_path: Path to pre-trained hypernetwork weights (not yet implemented)
         use_adaptive: Whether to use adaptive mode
         device: Device to run on ('cpu' or 'cuda')
         
     Returns:
         Configured MSCKFKalmanNet instance
+        
+    Note:
+        Loading pre-trained weights is not yet implemented. To use pre-trained models,
+        manually load the weights and call set_kalmannet_model() / set_hypernetwork().
     """
     msckf_knet = MSCKFKalmanNet(use_adaptive=use_adaptive)
     msckf_knet.set_device(torch.device(device))
     
-    if kalmannet_path is not None:
-        # Load KalmanNet - would need actual implementation
-        # kalmannet = load_kalmannet(kalmannet_path)
-        # msckf_knet.set_kalmannet_model(kalmannet)
-        pass
-        
-    if hypernetwork_path is not None:
-        # Load hypernetwork - would need actual implementation
-        # hypernetwork = load_hypernetwork(hypernetwork_path)
-        # msckf_knet.set_hypernetwork(hypernetwork)
-        pass
+    # Note: Weight loading not implemented - users should load weights manually
+    # Example:
+    #   kalmannet = KalmanNetNN()
+    #   kalmannet.load_state_dict(torch.load(kalmannet_path))
+    #   msckf_knet.set_kalmannet_model(kalmannet)
         
     return msckf_knet

@@ -190,6 +190,11 @@ def generate_synthetic_data(T: int, dt: float = 0.01):
     Returns:
         Tuple of (imu_readings, observations, ground_truth)
     """
+    # Noise parameters - defined as constants for clarity
+    GYRO_NOISE_STD = 0.001  # rad/s
+    ACCEL_NOISE_STD = 0.01  # m/s^2
+    OBS_NOISE_STD = 0.1     # pixels
+    
     # Generate a simple circular trajectory
     omega_z = 0.1  # Angular velocity around z-axis
     
@@ -227,8 +232,8 @@ def generate_synthetic_data(T: int, dt: float = 0.01):
         ground_truth['orientations'].append(angle)
         
         # Generate IMU reading with noise
-        omega = np.array([0.0, 0.0, omega_z]) + 0.001 * np.random.randn(3)
-        accel = np.array([0.0, 0.0, 9.81]) + 0.01 * np.random.randn(3)  # Gravity
+        omega = np.array([0.0, 0.0, omega_z]) + GYRO_NOISE_STD * np.random.randn(3)
+        accel = np.array([0.0, 0.0, 9.81]) + ACCEL_NOISE_STD * np.random.randn(3)  # Gravity
         
         imu_reading = IMUReading(
             omega=omega,
@@ -239,7 +244,7 @@ def generate_synthetic_data(T: int, dt: float = 0.01):
         
         # Generate observation (simplified feature projection)
         # In real VIO, this would be feature tracks from images
-        obs = np.array([pos[0], pos[1]]) + 0.1 * np.random.randn(2)
+        obs = np.array([pos[0], pos[1]]) + OBS_NOISE_STD * np.random.randn(2)
         observations.append(obs)
         
     return imu_readings, observations, ground_truth

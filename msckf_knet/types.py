@@ -8,7 +8,17 @@ import torch
 import numpy as np
 from dataclasses import dataclass, field
 from typing import List, Optional
-from scipy.spatial.transform import Rotation
+from scipy.spatial.transform import Rotation as ScipyRotation
+
+
+def quat_wxyz_to_xyzw(q_wxyz: np.ndarray) -> np.ndarray:
+    """Convert quaternion from [w, x, y, z] to [x, y, z, w] format."""
+    return np.array([q_wxyz[1], q_wxyz[2], q_wxyz[3], q_wxyz[0]])
+
+
+def quat_xyzw_to_wxyz(q_xyzw: np.ndarray) -> np.ndarray:
+    """Convert quaternion from [x, y, z, w] to [w, x, y, z] format."""
+    return np.array([q_xyzw[3], q_xyzw[0], q_xyzw[1], q_xyzw[2]])
 
 
 @dataclass
@@ -33,7 +43,7 @@ class CameraParams:
     
     def get_rotation_CI(self) -> np.ndarray:
         """Get rotation matrix from IMU to Camera frame."""
-        return Rotation.from_quat([self.q_CI[1], self.q_CI[2], self.q_CI[3], self.q_CI[0]]).as_matrix()
+        return ScipyRotation.from_quat(quat_wxyz_to_xyzw(self.q_CI)).as_matrix()
 
 
 @dataclass
@@ -54,7 +64,7 @@ class CameraState:
     
     def get_rotation_CG(self) -> np.ndarray:
         """Get rotation matrix from global to camera frame."""
-        return Rotation.from_quat([self.q_CG[1], self.q_CG[2], self.q_CG[3], self.q_CG[0]]).as_matrix()
+        return ScipyRotation.from_quat(quat_wxyz_to_xyzw(self.q_CG)).as_matrix()
 
 
 @dataclass
@@ -85,7 +95,7 @@ class IMUState:
     
     def get_rotation_IG(self) -> np.ndarray:
         """Get rotation matrix from global to IMU frame."""
-        return Rotation.from_quat([self.q_IG[1], self.q_IG[2], self.q_IG[3], self.q_IG[0]]).as_matrix()
+        return ScipyRotation.from_quat(quat_wxyz_to_xyzw(self.q_IG)).as_matrix()
     
     def copy(self) -> 'IMUState':
         """Create a deep copy of the IMU state."""
