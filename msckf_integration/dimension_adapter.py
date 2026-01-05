@@ -58,25 +58,31 @@ class MSCKFDimensionAdapter(nn.Module):
             
             # Initialize with truncated identity
             with torch.no_grad():
+                # State encoder initialization
+                min_state_dim = min(knet_m, msckf_m_max)
                 if knet_m <= msckf_m_max:
                     self.state_encoder.weight.data[:, :knet_m] = torch.eye(knet_m)
                 else:
-                    self.state_encoder.weight.data[:knet_m, :] = torch.eye(knet_m)[:, :msckf_m_max]
-                    
-                if msckf_m_max <= knet_m:
-                    self.state_decoder.weight.data[:msckf_m_max, :] = torch.eye(msckf_m_max)
-                else:
-                    self.state_decoder.weight.data[:, :msckf_m_max] = torch.eye(msckf_m_max)
+                    self.state_encoder.weight.data[:min_state_dim, :min_state_dim] = torch.eye(min_state_dim)
                 
+                # State decoder initialization    
+                if msckf_m_max <= knet_m:
+                    self.state_decoder.weight.data[:msckf_m_max, :msckf_m_max] = torch.eye(msckf_m_max)
+                else:
+                    self.state_decoder.weight.data[:min_state_dim, :min_state_dim] = torch.eye(min_state_dim)
+                
+                # Observation encoder initialization
+                min_obs_dim = min(knet_n, msckf_n)
                 if knet_n <= msckf_n:
                     self.obs_encoder.weight.data[:, :knet_n] = torch.eye(knet_n)
                 else:
-                    self.obs_encoder.weight.data[:knet_n, :] = torch.eye(knet_n)[:, :msckf_n]
-                    
+                    self.obs_encoder.weight.data[:min_obs_dim, :min_obs_dim] = torch.eye(min_obs_dim)
+                
+                # Observation decoder initialization    
                 if msckf_n <= knet_n:
-                    self.obs_decoder.weight.data[:msckf_n, :] = torch.eye(msckf_n)
+                    self.obs_decoder.weight.data[:msckf_n, :msckf_n] = torch.eye(msckf_n)
                 else:
-                    self.obs_decoder.weight.data[:, :msckf_n] = torch.eye(msckf_n)
+                    self.obs_decoder.weight.data[:min_obs_dim, :min_obs_dim] = torch.eye(min_obs_dim)
         
         elif adaptation_method == 'split':
             # Split IMU state (16-dim) from camera poses

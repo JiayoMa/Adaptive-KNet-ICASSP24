@@ -218,8 +218,11 @@ class Pipeline_MSCKF_AdaptiveKNet:
                 
                 # Get weights from hypernetwork if available
                 if self.hnet is not None:
-                    # Context: use noise parameters (simplified)
-                    context = torch.ones(1, 2).to(self.device)  # [q2, r2]
+                    # Context: use noise parameters from system model
+                    # Use actual q2 and r2 values
+                    q2_val = float(msckf_model.q2) if hasattr(msckf_model, 'q2') else 0.01
+                    r2_val = float(msckf_model.r2) if hasattr(msckf_model, 'r2') else 1.0
+                    context = torch.tensor([[q2_val, r2_val]]).to(self.device)
                     weights_knet = self.hnet(context)
                     x_out_knet = self.knet(y_t_knet, weights_knet=weights_knet)
                 else:

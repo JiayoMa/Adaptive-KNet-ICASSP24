@@ -178,15 +178,16 @@ class MSCKFSystemModel:
         # Simplified projection model
         # In practice, would project 3D map points using camera poses
         
-        # Extract camera position from current IMU state
-        p_cam = x[:, 4:7, :]  # position
+        # Use a fixed observation matrix (initialized once)
+        if not hasattr(self, '_H_obs'):
+            # Create a fixed observation matrix based on state and obs dimensions
+            self._H_obs = torch.randn(self.n, self.m).to(x.device) * 0.1
+            # Make it more stable by adding identity component
+            min_dim = min(self.n, self.m)
+            self._H_obs[:min_dim, :min_dim] += torch.eye(min_dim).to(x.device)
         
-        # Simulate feature observations with simple linear projection
-        # This is simplified - real MSCKF would use proper camera projection
-        H_simplified = torch.randn(self.n, self.m).to(x.device) * 0.1
-        H_simplified = H_simplified.unsqueeze(0).expand(batch_size, -1, -1)
-        
-        y = torch.bmm(H_simplified, x)
+        H_batch = self._H_obs.unsqueeze(0).expand(batch_size, -1, -1)
+        y = torch.bmm(H_batch, x)
         
         return y
     
