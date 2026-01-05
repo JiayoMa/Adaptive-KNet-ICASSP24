@@ -235,8 +235,8 @@ class Pipeline_MSCKF_AdaptiveKNet:
                         'original_dim': msckf_m
                     }
                     if self.adapter.adaptation_method == 'split':
-                        # Store camera poses
-                        adaptation_info['camera_poses'] = train_init_batch[:, 16:, :]
+                        # Store camera poses from training data (use m_imu from adapter)
+                        adaptation_info['camera_poses'] = train_init_batch[:, self.adapter.m_imu:, :]
                     x_out_msckf = self.adapter.adapt_state_from_knet(x_out_knet, adaptation_info)
                 else:
                     x_out_msckf = x_out_knet

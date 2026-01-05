@@ -160,9 +160,9 @@ def main():
     
     # Initialize model with zero camera poses (start simple)
     m1_0 = torch.zeros(msckf_model.m, 1)
-    # Set initial quaternion to identity (w, x, y, z) = (1, 0, 0, 0)
-    # Note: Using w-first quaternion convention (Hamilton)
-    m1_0[0, 0] = 1.0  # w component of quaternion
+    # Set initial quaternion to identity using w-first convention: (w, x, y, z) = (1, 0, 0, 0)
+    # This is the scalar-first quaternion convention (also called Hamilton or JPL convention)
+    m1_0[0, 0] = 1.0  # w component (scalar part)
     m2_0 = torch.eye(msckf_model.m)
     
     msckf_model.InitSequence(m1_0, m2_0)

@@ -232,13 +232,14 @@ class MSCKFDimensionAdapter(nn.Module):
             
         elif adaptation_info['method'] == 'project':
             # Transform Kalman gain through projection matrices
-            # K_msckf = D_state @ K_knet @ E_obs^T
+            # K_msckf = D_state @ K_knet @ E_obs
             # where D_state is state decoder, E_obs is obs encoder
+            # Note: K maps from observation space to state space: dx = K @ dy
             
-            # First adapt observation dimension: K @ E_obs^T
-            obs_adapt = self.obs_encoder.weight.t()  # [msckf_n, knet_n]
+            # First adapt observation dimension: K @ E_obs
+            obs_adapt = self.obs_encoder.weight  # [knet_n, msckf_n]
             obs_adapt_batch = obs_adapt.unsqueeze(0).expand(batch_size, -1, -1)
-            KG_obs_adapted = torch.bmm(KG_knet, obs_adapt_batch.transpose(1, 2))
+            KG_obs_adapted = torch.bmm(KG_knet, obs_adapt_batch)
             # [batch_size, knet_m, msckf_n]
             
             # Then adapt state dimension: D_state @ K
